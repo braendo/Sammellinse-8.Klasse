@@ -186,6 +186,18 @@ document.documentElement.classList.add('js-on');
         </div>
       </div>
 
+      <div class="cg">
+        <div class="cl">Gegenstand (Motiv)</div>
+        <div class="rad-g" id="obj-sel">
+          <label><input type="radio" name="obj" value="arrow"  checked> 🔺 Pfeil (klassisch)</label>
+          <label><input type="radio" name="obj" value="person">          🧍 Person</label>
+          <label><input type="radio" name="obj" value="flower">          🌸 Blume</label>
+          <label><input type="radio" name="obj" value="candle">          🕯️ Kerze</label>
+          <label><input type="radio" name="obj" value="tree">            🌳 Apfelbaum</label>
+          <label><input type="radio" name="obj" value="house">           🏠 Haus</label>
+        </div>
+      </div>
+
       <button class="btn" id="btnR">↺ Zurücksetzen</button>
 
       <div class="ig">
@@ -313,7 +325,7 @@ function explain(g, f, b) {
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
-const DEF = { g:7, f:3, par:true, fp:true, mid:true, cm:'cbf', ls:'elliptic' };
+const DEF = { g:7, f:3, par:true, fp:true, mid:true, cm:'cbf', ls:'elliptic', obj:'arrow' };
 let S = {...DEF};
 
 // ── Canvas ───────────────────────────────────────────────────────────────────
@@ -418,6 +430,424 @@ function drawLens(f, shape){
       0.3, -(av+0.45), {size:11, col:'#333', bg:'rgba(255,255,255,0.9)'});
 }
 
+// ── Object shapes ────────────────────────────────────────────────────────────
+// Gemeinsame Zeichenfunktion für Gegenstand UND Bild.
+// mode: 'object' (aufrecht, volle Deckkraft) | 'real' (gespiegelt, solide) | 'virtual' (aufrecht, halbtransparent)
+function drawMotif(xPos, topY, mode){
+  const shape = S.obj || 'arrow';
+
+  // Pfeil behält bisheriges Verhalten
+  if (shape === 'arrow') {
+    if (mode === 'object') {
+      vArrow(xPos, 0, topY, '#ff9800');
+    } else if (mode === 'real') {
+      vArrow(xPos, 0, topY, '#9c27b0');
+    } else {
+      vArrow(xPos, 0, topY, '#00897b', true);
+    }
+    return;
+  }
+
+  const px  = wx(xPos);
+  const py0 = wy(0);
+  const pyT = wy(topY);
+  const h   = pyT - py0;               // negativ wenn Bild/Objekt nach oben zeigt
+  const up  = h < 0;                   // "normal" orientiert (Kopf oben)
+  const scale = Math.abs(h);
+
+  ctx.save();
+  ctx.translate(px, py0);
+  // Damit das Bild beim reellen Fall automatisch gespiegelt wird, zeichnen wir
+  // einfach immer mit dem übergebenen h. Der Wert imgH ist bereits negativ
+  // (umgekehrt) bzw. positiv (virtuell/aufrecht). Die Zeichnung geht also
+  // immer von y=0 Richtung y=h.
+
+  // Transparenz für Bildmodi
+  if (mode === 'real')    ctx.globalAlpha = 0.92;
+  if (mode === 'virtual') ctx.globalAlpha = 0.55;
+
+  // Weicher Schatten am Fuß
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, scale*0.22, Math.max(2, scale*0.04), 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  if (shape === 'person') drawPerson(h, scale, up, mode);
+  else if (shape === 'flower') drawFlower(h, scale, up, mode);
+  else if (shape === 'candle') drawCandle(h, scale, up, mode);
+  else if (shape === 'tree')   drawTree  (h, scale, up, mode);
+  else if (shape === 'house')  drawHouse (h, scale, up, mode);
+
+  ctx.restore();
+
+  // Label
+  if (mode === 'object') {
+    txt('G', xPos-0.55, topY/2, {size:15, col:'#222', align:'center', bg:'rgba(255,255,255,0.85)'});
+  }
+}
+
+// Hilfsfunktion: weicher Kreis mit radialem Gradient
+function softCircle(cx, cy, r, c1, c2){
+  const g = ctx.createRadialGradient(cx-r*0.3, cy-r*0.3, r*0.1, cx, cy, r);
+  g.addColorStop(0, c1);
+  g.addColorStop(1, c2);
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+}
+
+// ── PERSON ────────────────────────────────────────────────────────────────────
+function drawPerson(h, scale, up, mode){
+  const w = scale * 0.32;
+  const lw = Math.max(2.2, scale*0.05);
+
+  // Hilfsfunktionen für Position (h kann negativ sein → "up" Richtung)
+  // Relativ: 0 = Fuß, h = Scheitel
+  const bodyTop = h*0.62;  // Schulter
+  const headC   = h*0.82;  // Kopfmitte
+  const headR   = scale*0.12;
+
+  // Beine
+  ctx.strokeStyle = '#3949ab';
+  ctx.lineWidth = lw*1.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, h*0.02); ctx.lineTo(-w*0.25, h*0.30); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, h*0.02); ctx.lineTo( w*0.25, h*0.30); ctx.stroke();
+
+  // Körper (Shirt) als Trapez
+  const shirtColor = mode === 'real' ? '#e91e63' : mode === 'virtual' ? '#ba68c8' : '#f06292';
+  ctx.fillStyle = shirtColor;
+  ctx.beginPath();
+  ctx.moveTo(-w*0.18, h*0.28);
+  ctx.lineTo( w*0.18, h*0.28);
+  ctx.lineTo( w*0.32, bodyTop);
+  ctx.lineTo(-w*0.32, bodyTop);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=1.2; ctx.stroke();
+
+  // Arme (hängend seitlich)
+  ctx.strokeStyle = shirtColor;
+  ctx.lineWidth = lw*1.3;
+  ctx.beginPath(); ctx.moveTo(-w*0.30, bodyTop*0.98); ctx.quadraticCurveTo(-w*0.48, h*0.45, -w*0.40, h*0.28); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo( w*0.30, bodyTop*0.98); ctx.quadraticCurveTo( w*0.48, h*0.45,  w*0.40, h*0.28); ctx.stroke();
+
+  // Hals
+  ctx.fillStyle = '#ffd5b4';
+  ctx.fillRect(-w*0.06, bodyTop, w*0.12, h*0.08);
+
+  // Kopf mit weichem Gradient
+  softCircle(0, headC, headR, '#ffe0c4', '#e8b894');
+  ctx.strokeStyle='rgba(0,0,0,0.18)'; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.arc(0, headC, headR, 0, Math.PI*2); ctx.stroke();
+
+  // Haare (Kappe oben auf dem Kopf)
+  ctx.fillStyle = '#4e342e';
+  ctx.beginPath();
+  const hairY = up ? headC + headR*0.55 : headC - headR*0.55;
+  ctx.ellipse(0, hairY, headR*1.02, headR*0.75, 0,
+              up ? Math.PI : 0, up ? 2*Math.PI : Math.PI);
+  ctx.fill();
+
+  // Augen (kleine Punkte – Richtung hängt von up ab)
+  ctx.fillStyle = '#222';
+  const eyeY = up ? headC - headR*0.15 : headC + headR*0.15;
+  ctx.beginPath(); ctx.arc(-headR*0.32, eyeY, headR*0.09, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc( headR*0.32, eyeY, headR*0.09, 0, Math.PI*2); ctx.fill();
+
+  // Lächeln
+  ctx.strokeStyle='#b71c1c'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  const mouthY = up ? headC - headR*0.45 : headC + headR*0.45;
+  ctx.arc(0, mouthY, headR*0.35, up ? 0.15*Math.PI : 1.15*Math.PI, up ? 0.85*Math.PI : 1.85*Math.PI);
+  ctx.stroke();
+}
+
+// ── BLUME ─────────────────────────────────────────────────────────────────────
+function drawFlower(h, scale, up, mode){
+  const stemTopFrac = 0.62;
+  const stemTop = h*stemTopFrac;
+  const lw = Math.max(2, scale*0.045);
+
+  // Stängel leicht geschwungen
+  ctx.strokeStyle = '#43a047';
+  ctx.lineWidth = lw;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(scale*0.04, h*0.3, 0, stemTop);
+  ctx.stroke();
+
+  // Zwei Blätter
+  ctx.fillStyle = '#66bb6a';
+  ctx.strokeStyle = '#2e7d32'; ctx.lineWidth = 1;
+  // linkes Blatt
+  ctx.save();
+  ctx.translate(0, h*0.35);
+  ctx.rotate(up ? -0.5 : 0.5);
+  ctx.beginPath();
+  ctx.ellipse(-scale*0.12, 0, scale*0.15, scale*0.06, 0, 0, Math.PI*2);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+  // rechtes Blatt
+  ctx.save();
+  ctx.translate(0, h*0.22);
+  ctx.rotate(up ? 0.5 : -0.5);
+  ctx.beginPath();
+  ctx.ellipse(scale*0.12, 0, scale*0.14, scale*0.055, 0, 0, Math.PI*2);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  // Blütenblätter – 8 Stück, mit Gradient je Blatt
+  const petalR = scale*0.11;
+  const centerY = h*0.78;
+  const petalColors = ['#ec407a','#f06292','#ec407a','#f06292','#ec407a','#f06292','#ec407a','#f06292'];
+  const petalDeep = '#ad1457';
+
+  for (let i = 0; i < 8; i++) {
+    const a = (i/8)*Math.PI*2;
+    const cx = Math.cos(a)*petalR*1.4;
+    const cy = centerY + Math.sin(a)*petalR*1.4;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(a);
+    const grad = ctx.createRadialGradient(0, 0, petalR*0.2, 0, 0, petalR*1.1);
+    grad.addColorStop(0, '#fff');
+    grad.addColorStop(0.4, petalColors[i]);
+    grad.addColorStop(1, petalDeep);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, petalR*0.55, petalR*1.1, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle='rgba(173,20,87,0.35)'; ctx.lineWidth=1; ctx.stroke();
+    ctx.restore();
+  }
+
+  // Blütenmitte mit Textur
+  softCircle(0, centerY, petalR*0.75, '#ffee58', '#f9a825');
+  // Punkte in der Mitte (Pollen)
+  ctx.fillStyle = '#e65100';
+  for (let i = 0; i < 7; i++){
+    const a = (i/7)*Math.PI*2;
+    ctx.beginPath();
+    ctx.arc(Math.cos(a)*petalR*0.35, centerY + Math.sin(a)*petalR*0.35, petalR*0.08, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+// ── KERZE ─────────────────────────────────────────────────────────────────────
+function drawCandle(h, scale, up, mode){
+  const cw = scale * 0.26;
+  const waxTop = h*0.70;
+
+  // Wachs (mit vertikalem Farbverlauf)
+  const waxGrad = ctx.createLinearGradient(-cw/2, 0, cw/2, 0);
+  waxGrad.addColorStop(0,    '#e1bee7');
+  waxGrad.addColorStop(0.5,  '#f3e5f5');
+  waxGrad.addColorStop(1,    '#ce93d8');
+  ctx.fillStyle = waxGrad;
+  // abgerundete Rechteck-Wachskerze
+  const r = cw*0.15;
+  ctx.beginPath();
+  ctx.moveTo(-cw/2 + r, 0);
+  ctx.lineTo( cw/2 - r, 0);
+  ctx.quadraticCurveTo(cw/2, 0, cw/2, Math.sign(h)*r);
+  ctx.lineTo( cw/2, waxTop);
+  ctx.lineTo(-cw/2, waxTop);
+  ctx.lineTo(-cw/2, Math.sign(h)*r);
+  ctx.quadraticCurveTo(-cw/2, 0, -cw/2 + r, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle='#8e24aa'; ctx.lineWidth=1.2; ctx.stroke();
+
+  // Tropfspuren am Wachs
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.beginPath();
+  ctx.ellipse(-cw*0.2, h*0.35, cw*0.06, Math.abs(h*0.12), 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Docht
+  ctx.strokeStyle = '#3e2723';
+  ctx.lineWidth = Math.max(1.5, scale*0.025);
+  ctx.beginPath();
+  ctx.moveTo(0, waxTop);
+  ctx.lineTo(0, h*0.78);
+  ctx.stroke();
+
+  // Flamme – äußere Hülle (gelb-orange Gradient)
+  const flameTop = h;
+  const flameBase = h*0.80;
+  const fw = cw*0.42;
+
+  const outerGrad = ctx.createRadialGradient(0, (flameTop+flameBase)/2, fw*0.2,
+                                             0, (flameTop+flameBase)/2, fw*1.4);
+  outerGrad.addColorStop(0, '#fff59d');
+  outerGrad.addColorStop(0.4, '#ffa726');
+  outerGrad.addColorStop(1, 'rgba(239, 108, 0, 0)');
+  ctx.fillStyle = outerGrad;
+  ctx.beginPath();
+  ctx.moveTo(0, flameBase);
+  ctx.bezierCurveTo( fw*1.1, (flameTop+flameBase)*0.55,  fw*0.7, flameTop*0.7, 0, flameTop);
+  ctx.bezierCurveTo(-fw*0.7, flameTop*0.7, -fw*1.1, (flameTop+flameBase)*0.55, 0, flameBase);
+  ctx.fill();
+
+  // Flamme – Kern (heller)
+  ctx.fillStyle = '#fff9c4';
+  ctx.beginPath();
+  ctx.moveTo(0, flameBase + (flameTop-flameBase)*0.05);
+  ctx.bezierCurveTo( fw*0.45, (flameTop+flameBase)*0.55,  fw*0.3, flameTop*0.75, 0, flameTop*0.92);
+  ctx.bezierCurveTo(-fw*0.3, flameTop*0.75, -fw*0.45, (flameTop+flameBase)*0.55, 0, flameBase + (flameTop-flameBase)*0.05);
+  ctx.fill();
+
+  // Glimmen am Docht (heller Punkt)
+  ctx.fillStyle = '#ffeb3b';
+  ctx.beginPath();
+  ctx.arc(0, flameBase, fw*0.15, 0, Math.PI*2);
+  ctx.fill();
+}
+
+// ── BAUM ──────────────────────────────────────────────────────────────────────
+function drawTree(h, scale, up, mode){
+  const tw = scale * 0.42;
+
+  // Stamm mit Farbverlauf
+  const trunkGrad = ctx.createLinearGradient(-tw*0.15, 0, tw*0.15, 0);
+  trunkGrad.addColorStop(0, '#5d4037');
+  trunkGrad.addColorStop(0.5, '#8d6e63');
+  trunkGrad.addColorStop(1, '#5d4037');
+  ctx.fillStyle = trunkGrad;
+  ctx.fillRect(-tw*0.13, 0, tw*0.26, h*0.28);
+  ctx.strokeStyle='#3e2723'; ctx.lineWidth=1;
+  ctx.strokeRect(-tw*0.13, 0, tw*0.26, h*0.28);
+
+  // Rinden-Linien
+  ctx.strokeStyle = 'rgba(62,39,35,0.35)'; ctx.lineWidth=1;
+  for (let i=0; i<3; i++){
+    ctx.beginPath();
+    const xx = -tw*0.08 + i*tw*0.08;
+    ctx.moveTo(xx, h*0.05);
+    ctx.lineTo(xx+tw*0.02, h*0.25);
+    ctx.stroke();
+  }
+
+  // Drei gestaffelte Laubkugeln (mit radialem Gradient)
+  const leafColors = [
+    ['#81c784','#2e7d32'],
+    ['#66bb6a','#1b5e20'],
+    ['#a5d6a7','#388e3c'],
+  ];
+  const centers = [
+    {x: 0,         y: h*0.45, r: tw*0.55},
+    {x:-tw*0.28,   y: h*0.60, r: tw*0.42},
+    {x: tw*0.28,   y: h*0.60, r: tw*0.42},
+    {x: 0,         y: h*0.78, r: tw*0.48},
+  ];
+  centers.forEach((c, i) => {
+    const col = leafColors[i % leafColors.length];
+    softCircle(c.x, c.y, c.r, col[0], col[1]);
+    ctx.strokeStyle='rgba(27,94,32,0.5)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.stroke();
+  });
+
+  // Kleine rote Äpfel
+  ctx.fillStyle = '#e53935';
+  const apples = [
+    {x:-tw*0.15, y: h*0.55},
+    {x: tw*0.20, y: h*0.68},
+    {x:-tw*0.32, y: h*0.72},
+    {x: tw*0.05, y: h*0.85},
+  ];
+  apples.forEach(a => {
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, Math.max(2, scale*0.025), 0, Math.PI*2);
+    ctx.fill();
+    // Glanzpunkt
+    ctx.fillStyle='rgba(255,255,255,0.7)';
+    ctx.beginPath();
+    ctx.arc(a.x-scale*0.008, a.y-scale*0.008, Math.max(1, scale*0.008), 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#e53935';
+  });
+}
+
+// ── HAUS ──────────────────────────────────────────────────────────────────────
+function drawHouse(h, scale, up, mode){
+  const hw = scale * 0.55;        // Hausbreite
+  const wallTop = h*0.55;
+
+  // Wände
+  const wallGrad = ctx.createLinearGradient(-hw/2, 0, hw/2, 0);
+  wallGrad.addColorStop(0, '#fff3e0');
+  wallGrad.addColorStop(1, '#ffe0b2');
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(-hw/2, 0, hw, wallTop);
+  ctx.strokeStyle='#6d4c41'; ctx.lineWidth=1.5;
+  ctx.strokeRect(-hw/2, 0, hw, wallTop);
+
+  // Dach (Dreieck)
+  ctx.fillStyle = '#c62828';
+  ctx.beginPath();
+  ctx.moveTo(-hw*0.58, wallTop);
+  ctx.lineTo( hw*0.58, wallTop);
+  ctx.lineTo(0, h*0.95);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle='#7f0000'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Dachlinien
+  ctx.strokeStyle='rgba(127,0,0,0.4)'; ctx.lineWidth=1;
+  for (let i=1; i<4; i++){
+    const frac = i/4;
+    ctx.beginPath();
+    ctx.moveTo(-hw*0.58*(1-frac) - 0 , wallTop + (h*0.95-wallTop)*frac);
+    ctx.lineTo( hw*0.58*(1-frac) + 0 , wallTop + (h*0.95-wallTop)*frac);
+    ctx.stroke();
+  }
+
+  // Tür
+  ctx.fillStyle = '#5d4037';
+  const dw = hw*0.18, dh = h*0.30;
+  ctx.fillRect(-dw/2, 0, dw, dh);
+  ctx.strokeStyle='#3e2723'; ctx.lineWidth=1.2;
+  ctx.strokeRect(-dw/2, 0, dw, dh);
+  // Türknauf
+  ctx.fillStyle='#ffc107';
+  ctx.beginPath();
+  ctx.arc(dw*0.3, dh*0.5, Math.max(1.5, scale*0.012), 0, Math.PI*2);
+  ctx.fill();
+
+  // Fenster links und rechts
+  const fw = hw*0.18, fh = h*0.18;
+  const fy = h*0.30;
+  [-hw*0.28, hw*0.28].forEach(fx => {
+    // Rahmen
+    ctx.fillStyle = '#81d4fa';
+    ctx.fillRect(fx-fw/2, fy, fw, fh);
+    ctx.strokeStyle='#01579b'; ctx.lineWidth=1.5;
+    ctx.strokeRect(fx-fw/2, fy, fw, fh);
+    // Kreuz
+    ctx.beginPath();
+    ctx.moveTo(fx, fy); ctx.lineTo(fx, fy+fh);
+    ctx.moveTo(fx-fw/2, fy+fh/2); ctx.lineTo(fx+fw/2, fy+fh/2);
+    ctx.stroke();
+  });
+
+  // Schornstein
+  ctx.fillStyle='#795548';
+  ctx.fillRect(hw*0.22, wallTop + (h*0.95-wallTop)*0.3, hw*0.10, (h*0.95-wallTop)*0.6);
+  ctx.strokeStyle='#3e2723'; ctx.lineWidth=1;
+  ctx.strokeRect(hw*0.22, wallTop + (h*0.95-wallTop)*0.3, hw*0.10, (h*0.95-wallTop)*0.6);
+}
+
+// Wrapper für Rückwärtskompatibilität
+function drawObject(ox, H, color) {
+  drawMotif(ox, H, 'object');
+}
+function drawImageShape(imgX, imgH, color, dashed) {
+  drawMotif(imgX, imgH, dashed ? 'virtual' : 'real');
+}
+
 // ── Main draw ────────────────────────────────────────────────────────────────
 function draw(){
   ctx.clearRect(0,0,cW,cH);
@@ -469,8 +899,7 @@ function draw(){
   const XFAR = WX1-0.3;
 
   // object
-  vArrow(ox, 0, H, '#ff9800');
-  txt('G', ox-0.45, H/2, {size:16, col:'#222', align:'center', bg:'rgba(255,255,255,0.85)'});
+  drawObject(ox, H, '#ff9800');
 
   if(res.b === null){
     // no image
@@ -529,10 +958,10 @@ function draw(){
 
     // image
     if(b>0){
-      vArrow(imgX,0,imgH,'#9c27b0');
+      drawImageShape(imgX, imgH, '#9c27b0', false);
       txt('B', imgX+0.38, imgH/2, {size:16, col:'#222', bg:'rgba(255,255,255,0.85)'});
     } else {
-      vArrow(imgX,0,imgH,'#00897b',true);
+      drawImageShape(imgX, imgH, '#00897b', true);
       txt('B (virtuell)', imgX-0.3, imgH/2, {size:13, col:'#222', align:'right', bg:'rgba(255,255,255,0.85)'});
     }
   }
@@ -604,7 +1033,7 @@ document.getElementById('cbPar').addEventListener('change',e=>{S.par=e.target.ch
 document.getElementById('cbFP' ).addEventListener('change',e=>{S.fp =e.target.checked;draw()});
 document.getElementById('cbMid').addEventListener('change',e=>{S.mid=e.target.checked;draw()});
 document.querySelectorAll('input[name=ls]').forEach(r=>r.addEventListener('change',e=>{S.ls=e.target.value;draw()}));
-document.querySelectorAll('input[name=cm]').forEach(r=>r.addEventListener('change',e=>{S.cm=e.target.value;draw()}));
+document.querySelectorAll('input[name=obj]').forEach(r=>r.addEventListener('change',e=>{S.obj=e.target.value;draw()}));
 
 document.getElementById('btnR').addEventListener('click',()=>{
   S={...DEF};
@@ -615,6 +1044,7 @@ document.getElementById('btnR').addEventListener('click',()=>{
   document.getElementById('cbMid').checked=S.mid;
   document.querySelector(`input[name=ls][value=${S.ls}]`).checked=true;
   document.querySelector(`input[name=cm][value=${S.cm}]`).checked=true;
+  document.querySelector(`input[name=obj][value=${S.obj}]`).checked=true;
   draw();
 });
 
