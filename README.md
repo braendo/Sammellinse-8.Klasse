@@ -1,2 +1,9 @@
-# Sammellinse-8.Klasse
-nteraktive Sammellinsen-Simulation für den Physikunterricht (8. Klasse). Enthält vier Lernmodi: freies Erkunden, Vorhersagen, Bildkonstruktion und geführte Forscheraufträge. Läuft vollständig im Browser – keine Installation nötig.
+Interaktive Browser-Simulation zur Sammellinse für den Physikunterricht der 8. Klasse. Schülerinnen und Schüler können Gegenstandsweite und Brennweite stufenlos einstellen und den Strahlengang in Echtzeit beobachten.
+
+Vier didaktische Modi:
+- 🔬 Erkunden – freies Experimentieren mit Konstruktionsstrahlen
+- 🎯 Vorhersagen – Hypothesen vor der Beobachtung formulieren
+- 🛠️ Konstruktion – geführte Schritt-für-Schritt-Bildkonstruktion
+- 🔍 Forscher – angeleitete Forscheraufträge mit Musterlösungen
+
+Optimiert für iPad und Desktop. Keine externen Abhängigkeiten – eine einzige HTML-Datei.
